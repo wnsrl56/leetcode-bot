@@ -20,15 +20,21 @@ const DIFFICULTIES = ['Easy', 'Medium', 'Hard'];
   const data1 = getFreeQuestions(allData);
   const data2 = getListQuestions(allData, ids);
 
-  const { difficulty: d, stat } = pickQuestion([...data1, ...data2]);
-  const text = formatText(
-    stat.frontend_question_id,
-    stat.question__title,
-    stat.question__title_slug,
-    DIFFICULTIES[d.level - 1],
-  );
+  const quizList = pickQuestion([...data1, ...data2]);
+  let text = '';
 
-  postQuestion(text);
+  quizList.forEach(({difficulty: d, stat}) => {
+    const item = formatText(
+      stat.frontend_question_id,
+      stat.question__title,
+      stat.question__title_slug,
+      DIFFICULTIES[d.level - 1],
+    );
+
+    text = `${text}${item}`
+  });
+  
+  postQuestion(text);  
 })();
 
 // API call
@@ -40,10 +46,12 @@ async function getData(url) {
   return data;
 }
 
+
 // Get all non-paid questions
-function getFreeQuestions(data) {
+function getFreeQuestions(data, level = 1, mixed = false) {
   return data.stat_status_pairs.filter(
-    ({ difficulty, paid_only }) => difficulty.level === 1 && !paid_only,
+    ({ difficulty: { level: l }, paid_only }) => 
+    !paid_only && (mixed ? l <= level : l === level),
   );
 }
 
@@ -64,9 +72,13 @@ function getListQuestions(data, ids) {
 }
 
 // Pick a qestion to post
-function pickQuestion(data) {
-  const i = Math.floor(Math.random() * data.length);
-  return data[i];
+function pickQuestion(data, length = 3) {  
+  const res = [];
+  while(length--) {
+    let i = Math.floor(Math.random() * data.length);
+    res.push(data[i]);
+  }
+  return res;
 }
 
 // Format message
@@ -77,7 +89,7 @@ function formatText(
   difficulty: string,
 ): string {
   const link = `${LEETCODE_BASE_URL}problems/${dir}/`;
-  return `${num}. ${title} - ${difficulty}\n${link}`;
+  return `${num}. ${title} - ${difficulty}\n${link}\n`;
 }
 
 // Post the generated message to Slack
